@@ -14,8 +14,8 @@ let bgmPlay;
 
 // --- 音楽ファイルの読み込み ---
 function preload() {
-  bgmStart = loadSound('スタート画面.mp3');
-  bgmPlay = loadSound('プレイ中.mp3');
+  bgmStart = loadSound('start.mp3');
+  bgmPlay = loadSound('play.mp3');
 }
 
 function setup() {
