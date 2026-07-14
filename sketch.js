@@ -1,3 +1,6 @@
+// ==========================================
+// 1. グローバル変数の定義
+// ==========================================
 let dino;
 let obstacles = [];
 let bullets = [];
@@ -6,221 +9,32 @@ let level = 1;
 let gameOver = false;
 let gameStarted = false;
 let bombAvailable = true;
-let highScores = []; // ★追加：上位5つのスコアを保持する配列
+let highScores = []; 
 
-// --- BGM用の変数 ---
 let bgmStart;
 let bgmPlay;
 
-// --- 音楽ファイルの読み込み ---
-function preload() {
-  bgmStart = loadSound('start.mp3');
-  bgmPlay = loadSound('play.mp3');
+// ==========================================
+// 2. 当たり判定用の自作関数（先に定義してエラーを防ぐ）
+// ==========================================
+function collideRectRect(x, y, w, h, x2, y2, w2, h2) {
+  return x < x2 + w2 && x + w > x2 && y < y2 + h2 && y + h > y2;
 }
 
-function setup() {
-  createCanvas(600, 400);
-  
-  // ★追加：ローカルストレージからスコアを読み込む
-  let savedScores = localStorage.getItem('dinoHighScores');
-  if (savedScores) {
-    highScores = JSON.parse(savedScores);
-  } else {
-    highScores = []; // ★修正：空の配列をセット
-  }
-
-  resetGame();
-  bgmStart.loop();
+function collideRectCircle(rx, ry, rw, rh, cx, cy, diameter) {
+  let testX = cx;
+  let testY = cy;
+  if (cx < rx) testX = rx;
+  else if (cx > rx + rw) testX = rx + rw;
+  if (cy < ry) testY = ry;
+  else if (cy > ry + rh) testY = ry + rh;
+  let d = dist(cx, cy, testX, testY);
+  return d <= diameter / 2;
 }
 
-function draw() {
-  background(240);
-  
-  let groundY = height * 0.75;
-  
-  // 地平線
-  stroke(150);
-  strokeWeight(2);
-  line(0, groundY, width, groundY);
-
-  if (!gameStarted) {
-    showScreen("恐竜ゲームプラス", "クリック か スペースで上昇\n[ F ] フルスクリーン  |  [ X ] ボム(1回)\n");
-    return;
-  }
-  
-  if (gameOver) {
-    showScreen("GAME OVER", `スコア: ${score} (LEVEL ${level})\nクリック か スペース でリスタート`);
-    return;
-  }
-  
-  // スコアとレベルの更新
-  if (frameCount % 5 === 0) {
-    score++;
-    level = floor(score / 200) + 1;
-  }
-  
-  drawHUD();
-
-  dino.update(groundY);
-  dino.show();
-
-  let spawnInterval = max(35, 90 - level * 5);
-  if (frameCount % floor(spawnInterval) === 0) {
-    let type = floor(random(4));
-    obstacles.push(new Obstacle(groundY, type));
-  }
-
-  for (let i = obstacles.length - 1; i >= 0; i--) {
-    obstacles[i].update();
-    obstacles[i].show();
-
-    let shootInterval = max(30, 70 - level * 4);
-    if (frameCount % floor(shootInterval) === 0 && obstacles[i].x > 120) {
-      obstacles[i].shoot();
-    }
-
-    if (obstacles[i].hits(dino)) {
-      handleGameOver(); // ★修正：ゲームオーバー処理を呼び
-      break; 
-    }
-    if (obstacles[i].offscreen()) obstacles.splice(i, 1);
-  }
-
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    bullets[i].update();
-    bullets[i].show();
-
-    if (bullets[i].hits(dino)) {
-      handleGameOver(); // ★修正：ゲームオーバー処理を呼び
-         break;
-    }
-    if (bullets[i].offscreen()) bullets.splice(i, 1);
-  }
-}
-
-function keyPressed() {
-  if (key === 'f' || key === 'F') {
-    let fs = fullscreen();
-    fullscreen(!fs);
-    return;
-  }
-
-  if ((key === 'x' || key === 'X') && gameStarted && !gameOver && bombAvailable) {
-    triggerBomb();
-    return;
-  }
-
-  if (key === ' ') {
-    handleAction();
-  }
-}
-
-function windowResized() {
-  if (fullscreen()) {
-    resizeCanvas(windowWidth, windowHeight);
-  } else {
-    resizeCanvas(600, 400);
-  }
-  if (dino) dino.x = 50;
-}
-
-function mousePressed() {
-  handleAction();
-}
-
-function handleAction() {
-  if (!gameStarted) {
-    gameStarted = true;
-    bgmStart.stop();
-    bgmPlay.loop();
-  } else if (gameOver) {
-    resetGame();
-  } else {
-    dino.jump();
-  }
-}
-
-function triggerBomb() {
-  bullets = [];
-  obstacles = []; 
-  bombAvailable = false;
-}
-
-// ★追加：ゲームオーバー時のスコア保存とBGM切り替え
-function handleGameOver() {
-  gameOver = true;
-  
-  highScores.push(score);                     
-  highScores.sort((a, b) => b - a);          
-  highScores = highScores.slice(0, 5);       
-  localStorage.setItem('dinoHighScores', JSON.stringify(highScores)); 
-
-  bgmPlay.stop();
-  bgmStart.loop();
-}
-
-function resetGame() {
-  let groundY = height * 0.75;
-  dino = new Dino(groundY);
-  obstacles = [];
-  bullets = [];
-  score = 0;
-  level = 1;
-  gameOver = false;
-  bombAvailable = true;
-
-  if (gameStarted) {
-    bgmStart.stop();
-    if (!bgmPlay.isPlaying()) {
-      bgmPlay.loop();
-    }
-  }
-}
-
-function drawHUD() {
-  fill(50);
-  noStroke();
-  textSize(20);
-  textAlign(LEFT);
-  text(`SCORE: ${score}`, 20, 40);
-  
-  fill(255, 50, 50);
-  text(`LEVEL: ${level}`, 180, 40);
-
-  textAlign(RIGHT);
-  if (bombAvailable) {
-    fill(0, 150, 255);
-    text("BOMB [X]: READY", width - 20, 40);
-  } else {
-    fill(150);
-    text("BOMB [X]: EMPTY", width - 20, 40);
-  }
-}
-
-// ★修正：ランキング表示を追加
-function showScreen(title, subtitle) {
-  fill(50);
-  noStroke();
-  textAlign(CENTER, CENTER);
-  textSize(width > 500 ? 32 : 24);
-  text(title, width / 2, height / 2 - 80); 
-  
-  textSize(width > 500 ? 16 : 12);
-  text(subtitle, width / 2, height / 2 - 20); 
-
-  fill(80);
-  textSize(16);
-  text("ーーー TOP 5 SCORES ーーー", width / 2, height / 2 + 40);
-  
-  textSize(14);
-  for (let i = 0; i < highScores.length; i++) {
-    let yOffset = height / 2 + 70 + (i * 20); 
-    text(`${i + 1}位: ${highScores[i]}点`, width / 2, yOffset);
-  }
-}
-
-// --- クラス定義 ---
-
+// ==========================================
+// 3. ゲームを構成するクラス（Dino, Obstacle, Bullet）
+// ==========================================
 class Dino {
   constructor(groundY) {
     this.r = 26; 
@@ -331,7 +145,6 @@ class Obstacle {
     }
   }
 
-  // ⭕ ライブラリを使わずに四角と四角の判定をする正しい形に統一しました
   hits(dino) {
     return collideRectRect(this.x, this.y, this.w, this.h, dino.x, dino.y, dino.r, dino.r);
   }
@@ -363,7 +176,6 @@ class Bullet {
     circle(this.x, this.y, this.r * 2);
   }
 
-  // ⭕ 下の自作関数ときれいに噛み合うようにスッキリさせました
   hits(dino) {
     return collideRectCircle(dino.x, dino.y, dino.r, dino.r, this.x, this.y, this.r * 2);
   }
@@ -373,17 +185,209 @@ class Bullet {
   }
 }
 
-function collideRectRect(x, y, w, h, x2, y2, w2, h2) {
-  return x < x2 + w2 && x + w > x2 && y < y2 + h2 && y + h > y2;
+// ==========================================
+// 4. p5.js メイン制御関数（preload, setup, draw）
+// ==========================================
+function preload() {
+  bgmStart = loadSound('start.mp3');
+  bgmPlay = loadSound('play.mp3');
 }
 
-function collideRectCircle(rx, ry, rw, rh, cx, cy, diameter) {
-  let testX = cx;
-  let testY = cy;
-  if (cx < rx) testX = rx;
-  else if (cx > rx + rw) testX = rx + rw;
-  if (cy < ry) testY = ry;
-  else if (cy > ry + rh) testY = ry + rh;
-  let d = dist(cx, cy, testX, testY);
-  return d <= diameter / 2;
+function setup() {
+  createCanvas(600, 400);
+  
+  let savedScores = localStorage.getItem('dinoHighScores');
+  if (savedScores) {
+    highScores = JSON.parse(savedScores);
+  } else {
+    highScores = []; 
+  }
+
+  resetGame();
+  bgmStart.loop();
+}
+
+function draw() {
+  background(240);
+  
+  let groundY = height * 0.75;
+  
+  stroke(150);
+  strokeWeight(2);
+  line(0, groundY, width, groundY);
+
+  if (!gameStarted) {
+    showScreen("恐竜ゲームプラス", "クリック か スペースで上昇\n[ F ] フルスクリーン  |  [ X ] ボム(1回)\n");
+    return;
+  }
+  
+  if (gameOver) {
+    showScreen("GAME OVER", `スコア: ${score} (LEVEL ${level})\nクリック か スペース でリスタート`);
+    return;
+  }
+  
+  if (frameCount % 5 === 0) {
+    score++;
+    level = floor(score / 200) + 1;
+  }
+  
+  drawHUD();
+
+  dino.update(groundY);
+  dino.show();
+
+  let spawnInterval = max(35, 90 - level * 5);
+  if (frameCount % floor(spawnInterval) === 0) {
+    let type = floor(random(4));
+    obstacles.push(new Obstacle(groundY, type));
+  }
+
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    obstacles[i].update();
+    obstacles[i].show();
+
+    let shootInterval = max(30, 70 - level * 4);
+    if (frameCount % floor(shootInterval) === 0 && obstacles[i].x > 120) {
+      obstacles[i].shoot();
+    }
+
+    if (obstacles[i].hits(dino)) {
+      handleGameOver(); 
+      break; 
+    }
+    if (obstacles[i].offscreen()) obstacles.splice(i, 1);
+  }
+
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    bullets[i].update();
+    bullets[i].show();
+
+    if (bullets[i].hits(dino)) {
+      handleGameOver(); 
+      break;
+    }
+    if (bullets[i].offscreen()) bullets.splice(i, 1);
+  }
+}
+
+// ==========================================
+// 5. イベント制御・UI関連関数
+// ==========================================
+function keyPressed() {
+  if (key === 'f' || key === 'F') {
+    let fs = fullscreen();
+    fullscreen(!fs);
+    return;
+  }
+
+  if ((key === 'x' || key === 'X') && gameStarted && !gameOver && bombAvailable) {
+    triggerBomb();
+    return;
+  }
+
+  if (key === ' ') {
+    handleAction();
+  }
+}
+
+function windowResized() {
+  if (fullscreen()) {
+    resizeCanvas(windowWidth, windowHeight);
+  } else {
+    resizeCanvas(600, 400);
+  }
+  if (dino) dino.x = 50;
+}
+
+function mousePressed() {
+  handleAction();
+}
+
+function handleAction() {
+  if (!gameStarted) {
+    gameStarted = true;
+    bgmStart.stop();
+    bgmPlay.loop();
+  } else if (gameOver) {
+    resetGame();
+  } else {
+    dino.jump();
+  }
+}
+
+function triggerBomb() {
+  bullets = [];
+  obstacles = []; 
+  bombAvailable = false;
+}
+
+function handleGameOver() {
+  gameOver = true;
+  
+  highScores.push(score);                     
+  highScores.sort((a, b) => b - a);          
+  highScores = highScores.slice(0, 5);       
+  localStorage.setItem('dinoHighScores', JSON.stringify(highScores)); 
+
+  bgmPlay.stop();
+  bgmStart.loop();
+}
+
+function resetGame() {
+  let groundY = height * 0.75;
+  dino = new Dino(groundY);
+  obstacles = [];
+  bullets = [];
+  score = 0;
+  level = 1;
+  gameOver = false;
+  bombAvailable = true;
+
+  if (gameStarted) {
+    bgmStart.stop();
+    if (!bgmPlay.isPlaying()) {
+      bgmPlay.loop();
+    }
+  }
+}
+
+function drawHUD() {
+  fill(50);
+  noStroke();
+  textSize(20);
+  textAlign(LEFT);
+  text(`SCORE: ${score}`, 20, 40);
+  
+  fill(255, 50, 50);
+  text(`LEVEL: ${level}`, 180, 40);
+
+  textAlign(RIGHT);
+  if (bombAvailable) {
+    fill(0, 150, 255);
+    text("BOMB [X]: READY", width - 20, 40);
+  } else {
+    fill(150);
+    text("BOMB [X]: EMPTY", width - 20, 40);
+  }
+}
+
+function showScreen(title, subtitle) {
+  fill(50);
+  noStroke();
+  textAlign(CENTER, CENTER);
+  textSize(width > 500 ? 32 : 24);
+  text(title, width / 2, height / 2 - 80); 
+  
+  textSize(width > 500 ? 16 : 12);
+  text(subtitle, width / 2, height / 2 - 20); 
+
+  fill(80);
+  textSize(16);
+  text("ーーー TOP 5 SCORES ーーー", width / 2, height / 2 + 40);
+  
+  textSize(14);
+  for (let i = 0; i < highScores.length; i++) {
+    let yOffset = height / 2 + 70 + (i * 20); 
+    text(`${i + 1}位: ${highScores[i]}点`, width / 2, yOffset);
+  }
 }
