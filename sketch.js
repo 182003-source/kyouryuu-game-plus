@@ -331,15 +331,10 @@ class Obstacle {
     }
   }
 
+  // ⭕ ライブラリを使わずに四角と四角の判定をする正しい形に統一しました
   hits(dino) {
-  // 四角と四角の当たり判定を計算する標準プログラムです
-  return (
-    this.x < dino.x + dino.r &&
-    this.x + this.w > dino.x &&
-    this.y < dino.y + dino.r &&
-    this.y + this.h > dino.y
-  );
-}
+    return collideRectRect(this.x, this.y, this.w, this.h, dino.x, dino.y, dino.r, dino.r);
+  }
 
   offscreen() {
     return this.x < -this.w;
@@ -368,14 +363,10 @@ class Bullet {
     circle(this.x, this.y, this.r * 2);
   }
 
- hits(dino) {
-  // 外部ライブラリを使わずに、四角と円の当たり判定を計算する標準プログラムです
-  let closestX = constrain(this.x, dino.x, dino.x + dino.r);
-  let closestY = constrain(this.y, dino.y, dino.y + dino.r);
-  let d = dist(this.x, this.y, closestX, closestY);
-  return d < this.r;
-}
-
+  // ⭕ 下の自作関数ときれいに噛み合うようにスッキリさせました
+  hits(dino) {
+    return collideRectCircle(dino.x, dino.y, dino.r, dino.r, this.x, this.y, this.r * 2);
+  }
 
   offscreen() {
     return (this.x < -this.r || this.x > width + this.r || this.y < -this.r || this.y > height + this.r);
@@ -383,7 +374,7 @@ class Bullet {
 }
 
 function collideRectRect(x, y, w, h, x2, y2, w2, h2) {
-  return x + w >= x2 && x <= x2 + w2 && y + h >= y2 && y <= y2 + h2;
+  return x < x2 + w2 && x + w > x2 && y < y2 + h2 && y + h > y2;
 }
 
 function collideRectCircle(rx, ry, rw, rh, cx, cy, diameter) {
